@@ -423,6 +423,7 @@ import { TubePainter } from './lib/Painter';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import ImmersiveControls from '@depasquale/three-immersive-controls';
+import {Peer} from "peerjs"
 
 import { Color } from 'three';
 import { io } from "socket.io-client"
@@ -433,17 +434,25 @@ const cursor = new THREE.Vector3();
 
 let socket = null
 let controls;
+const ROOM_ID = "room1";
 let gameScene
 let meshes = {}
 let joinedRoom = false;
 let dracoLoader,loader
 init();
 animate();
+//peer js
+const myPeer = new Peer()
+const peers = {}
+const audioGrid = document.createElement('div');
+	document.body.appendChild(audioGrid);
+
 
 function init() {
-	socketInit("room1")
+	socketInit(ROOM_ID)
 	const container = document.createElement('div');
 	document.body.appendChild(container);
+	
 
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color(0x222222);
@@ -697,7 +706,7 @@ function render() {
 }
 
 function socketInit(roomId) {
-	socket = io("http://localhost:3001");
+	socket = io("http://localhost:3005");
 	socket.on("connect", () => {
 		console.log("Connected to server");
 		console.log("Socket ID: "+socket.id);
@@ -722,3 +731,48 @@ function loadPlayers(data) {
 		console.log(user)
 	}
 }
+myPeer.on('open', id => {
+	console.log("mypeer",id);
+	socket.emit("join-room",  ROOM_ID,id)
+  })
+navigator.mediaDevices.getUserMedia({
+	
+	audio: true
+  }).then(stream => {
+	// addVideoStream(myVideo, stream)
+  
+	myPeer.on('call', call => {
+	  call.answer(stream)
+	  const audio = document.createElement('audio')
+	  call.on('stream', userAudioStream => {
+		addAudioStream(audio, userAudioStream)
+	  })
+	})
+	console.log();
+  
+	socket.on('user-connected', userId => {
+		
+		console.log("user connected", userId);
+	  connectToNewUser(userId, stream)
+	})
+  })
+  function connectToNewUser(userId, stream) {
+	const call = myPeer.call(userId, stream)
+	const audio = document.createElement('audio')
+	call.on('stream', userAudioStream => {
+	  addAudioStream(audio, userAudioStream)
+	  
+	})
+	call.on('close', () => {
+	  audio.remove()
+	})
+  
+	peers[userId] = call
+  }
+  function addAudioStream(audio, stream) {
+	audio.srcObject = stream
+	audio.addEventListener('loadedmetadata', () => {
+	  audio.play()
+	})
+	audioGrid.append(audio)
+  }
