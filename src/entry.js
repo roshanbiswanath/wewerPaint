@@ -723,11 +723,8 @@ function render() {
 }
 
 function socketInit(roomId) {
-<<<<<<< HEAD
-	socket = io("http://localhost:3005");
-=======
 	socket = io("http://ec2-43-205-117-26.ap-south-1.compute.amazonaws.com:3001");
->>>>>>> 0b4ede6ebc1922d626c71edee45a1f342fa78710
+
 	socket.on("connect", () => {
 		console.log("Connected to server");
 		console.log("Socket ID: "+socket.id);
